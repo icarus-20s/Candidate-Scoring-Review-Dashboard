@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>TechKraft — Candidate Scoring & Review</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:opsz@14..32&display=swap" rel="stylesheet">
+  </head>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #F5F0EC;
+      color: #271410;
+      font-size: 14px;
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    button { transition: filter 0.15s, opacity 0.15s; }
+    button:hover:not(:disabled) { filter: brightness(0.93); cursor: pointer; }
+    button:active:not(:disabled) { filter: brightness(0.87); }
+    select:hover { border-color: #8B6B5A !important; }
+    .score-btn:hover:not(.active) { background: #EBE3DC !important; }
+    input:focus, select:focus, textarea:focus { border-color: #603A2C !important; }
+  </style>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>

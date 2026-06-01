@@ -1,0 +1,41 @@
+services:
+  backend:
+    build: ./backend
+    container_name: techkraft-backend
+    ports:
+      - "8000:8000"
+    environment:
+      - JWT_SECRET=${JWT_SECRET:-dev-secret-change-in-production}
+    volumes:
+      - backend-db:/app
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+    networks:
+      - techkraft-net
+
+  frontend:
+    build:
+      context: ./frontend
+      target: runner
+    container_name: techkraft-frontend
+    ports:
+      - "5173:5173"
+    environment:
+      - VITE_API_URL=http://backend:8000
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - techkraft-net
+
+volumes:
+  backend-db:
+
+networks:
+  techkraft-net:
+    driver: bridge

@@ -1,0 +1,42 @@
+# --- Database ---
+*.db
+*.db-wal
+*.db-shm
+
+# --- Environment & Secrets ---
+.env
+.env.local
+*.pem
+
+# --- Python ---
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+.python-version
+
+# --- Node.js ---
+node_modules/
+frontend/dist/
+
+# --- IDE & Editor ---
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# --- OS ---
+.DS_Store
+Thumbs.db
+
+# --- Testing ---
+.pytest_cache/
+htmlcov/
+.coverage
+
+# --- Assignment ---
+*.pdf
+
+# --- Logs ---
+*.log
