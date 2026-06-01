@@ -1,8 +1,5 @@
 # TechKraft Candidate Scoring & Review Dashboard
 
-**Company:** TechKraft Inc.
-**Position:** Full Stack Engineer (Mid)
-
 An internal candidate scoring and review dashboard for TechKraft's recruitment workflow that includes admin UIs, scoring systems, and AI-assisted review interfaces. It is built with **FastAPI** (Python), **React + Vite**, **SQLite**, and **Docker Compose**.
 
 ---
@@ -88,12 +85,6 @@ For Docker, create a `.env` file in the project root and `docker compose` will l
 | Candidate Detail | AI Summary |
 |-----------------|------------|
 | ![Candidate Detail](screenshots/candidate-detail.png) | ![AI Summary](screenshots/ai-summary.png) |
-
----
-
-## Problem Statement
-
-TechKraft's recruitment team needs a web-based tool to manage candidate assessments. Reviewers need to score candidates across categories and view AI-generated summaries. Admins need full visibility.
 
 ---
 
