@@ -48,6 +48,18 @@ The `VITE_API_URL` env var controls where the frontend proxy sends API requests.
 
 ---
 
+## Screenshots
+
+| Login | Candidate List |
+|-------|---------------|
+| ![Login](screenshots/login.png) | ![Candidate List](screenshots/candidate-list.png) |
+
+| Candidate Detail | AI Summary |
+|-----------------|------------|
+| ![Candidate Detail](screenshots/candidate-detail.png) | ![AI Summary](screenshots/ai-summary.png) |
+
+---
+
 ## Problem Statement
 
 TechKraft's recruitment team needs a web-based tool to manage candidate assessments. Reviewers need to score candidates across categories and view AI-generated summaries. Admins need full visibility.
@@ -125,12 +137,20 @@ pip install -r requirements.txt
 pytest tests/ -v
 ```
 
-**5 tests covering:**
+**14 tests covering:**
 - Creating a candidate and verifying the response
 - Reviewer 1 cannot see Reviewer 2's scores
-- Reviewer cannot see `internal_notes`
-- Soft-deleted candidate returns 404 on GET
-- AI summary endpoint returns content
+- Reviewer cannot see `internal_notes` (list + detail)
+- Soft-deleted candidate returns 404 on GET (detail)
+- AI summary endpoint returns content and persists to `ai_summary`
+- Auto status progression (`new` → `reviewed` on first score)
+- Admin can change status (PATCH `hired` / `rejected`)
+- Reviewer cannot change status (403)
+- Reviewer cannot edit `internal_notes` (403)
+- Pagination behavior (`page_size`, `offset`, `next_offset`)
+- Page size capped at 50 (422 beyond)
+- Non-admin cannot delete (403)
+- Soft-deleted candidate excluded from list
 
 ---
 
@@ -190,26 +210,3 @@ def search_candidates(status: str, keyword: str, page: int, page_size: int):
 ## Learning Reflection
 
 This was my first time building an SSE (Server-Sent Events) endpoint with FastAPI using `sse-starlette`. I learned that SSE works well for real-time score updates in an internal tool where traffic is low and connections are few. Given more time, I would explore using WebSockets instead for bidirectional communication, which would allow the frontend to notify the server when it disconnects, cleaning up stale event generators — an edge case the current SSE approach doesn't handle gracefully.
-
----
-
-## Responsibility & Detail Checklist
-
-- [x] No credentials committed — `.env.example` contains dummy values
-- [x] All new registrations hardcode `role="reviewer"` — never accepted from client
-- [x] Soft delete — sets `status = "archived"`, never hard-deletes
-- [x] Mock AI summary shows loading/error states in the frontend (not just a blank page while waiting)
-- [x] README port numbers match Docker Compose (backend: 8000, frontend: 5173)
-- [x] Reviewer cannot see `internal_notes` or other reviewers' scores
-- [x] Admin can view and edit all scores + internal notes
-- [x] SSE streaming with connection indicator and "updated" flash
-- [x] Production multi-stage Docker build (nginx + static files)
-- [x] 30 seeded candidates for pagination demonstration
-- [x] Hover effects on all interactive elements
-- [x] Create candidate UI (inline form on list page)
-- [x] Admin-only soft delete UI on detail page
-- [x] `ai_summary` column separated from `internal_notes`
-- [x] Warm monotonic color palette (`#271410` / `#603A2C`)
-- [x] Inter font for professional typography
-- [x] Full-width responsive layout
-- [x] Input focus states for better UX
