@@ -11,10 +11,21 @@ Built with **FastAPI** (Python), **React + Vite**, **SQLite**, and **Docker Comp
 
 ## Quick Start
 
+### Run with Docker Compose (recommended)
+
 ```bash
+# 1. Clone the repo and enter the directory
+git clone https://github.com/icarus-20s/Candidate-Scoring-Review-Dashboard.git
+cd Candidate-Scoring-Review-Dashboard
+
+# 2. Create .env from the template
 cp .env.example .env
+
+# 3. Build and start all services
 docker compose up --build
 ```
+
+Once running, open:
 
 | Service    | URL                          |
 | ---------- | ---------------------------- |
@@ -209,4 +220,8 @@ def search_candidates(status: str, keyword: str, page: int, page_size: int):
 
 ## Learning Reflection
 
-This was my first time building an SSE (Server-Sent Events) endpoint with FastAPI using `sse-starlette`. I learned that SSE works well for real-time score updates in an internal tool where traffic is low and connections are few. Given more time, I would explore using WebSockets instead for bidirectional communication, which would allow the frontend to notify the server when it disconnects, cleaning up stale event generators — an edge case the current SSE approach doesn't handle gracefully.
+Building the SSE (Server-Sent Events) endpoint with FastAPI and `sse-starlette` deepened my understanding of real-time server-to-client communication patterns. SSE proved well-suited for the score-update use case — it is unidirectional, works over standard HTTP, and the browser-native `EventSource` API keeps the frontend integration simple without third-party dependencies.
+
+A key takeaway was the JWT authentication workaround: since `EventSource` cannot set custom HTTP headers, the token must be passed as a `?token=` query parameter. This is a well-known limitation that trades header-based security for SSE compatibility, and in practice it is acceptable when the connection uses HTTPS.
+
+Given more time, I would explore WebSocket-based updates instead. WebSockets provide bidirectional communication, allowing the client to acknowledge disconnection and letting the server clean up stale event generators — an edge case the current polling-based SSE approach does not handle gracefully.
