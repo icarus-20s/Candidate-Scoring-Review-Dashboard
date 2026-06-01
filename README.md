@@ -43,19 +43,41 @@ Register new users via the UI — all new registrations are hardcoded to the `re
 
 ### Local Development (no Docker)
 
-```bash
-# Terminal 1 — Backend
-cd backend
-pip install -r requirements.txt
-uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+#### Backend Setup
 
-# Terminal 2 — Frontend
+```bash
+cd backend
+python3 -m venv .venv
+source .venv/bin/activate       # Windows: .venv\Scripts\activate
+pip install -r requirements.txt
+cp .env.example .env            # or set JWT_SECRET yourself
+uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+```
+
+#### Frontend Setup
+
+```bash
 cd frontend
 npm install
 npm run dev
 ```
 
-The `VITE_API_URL` env var controls where the frontend proxy sends API requests. Default is `http://localhost:8000`. In Docker, set to `http://backend:8000`.
+The `VITE_API_URL` env var controls where the frontend proxy sends API requests. Default is `http://localhost:8000`.
+
+### Environment Variables
+
+The only required environment variable is `JWT_SECRET`:
+
+```bash
+# .env  (copy from .env.example)
+JWT_SECRET=your-random-secret-here
+```
+
+| Variable      | Required | Default                    | Description                          |
+| ------------- | -------- | -------------------------- | ------------------------------------ |
+| `JWT_SECRET`  | Yes      | `dev-secret-change-in-prod`| Secret key used to sign JWT tokens   |
+
+For Docker, create a `.env` file in the project root and `docker compose` will load it automatically. For local dev, copy `backend/.env.example` to `backend/.env`.
 
 ---
 
