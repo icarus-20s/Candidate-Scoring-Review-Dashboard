@@ -3,9 +3,7 @@
 **Company:** TechKraft Inc.
 **Position:** Full Stack Engineer (Mid)
 
-An internal candidate scoring and review dashboard for TechKraft's recruitment workflow — admin UIs, scoring systems, and AI-assisted review interfaces.
-
-Built with **FastAPI** (Python), **React + Vite**, **SQLite**, and **Docker Compose**.
+An internal candidate scoring and review dashboard for TechKraft's recruitment workflow that includes admin UIs, scoring systems, and AI-assisted review interfaces. It is built with **FastAPI** (Python), **React + Vite**, **SQLite**, and **Docker Compose**.
 
 ---
 
@@ -39,7 +37,7 @@ Once running, open:
 | -------- | --------------------- | --------- |
 | Admin    | admin@techkraft.com   | admin123  |
 
-Register new users via the UI — all new registrations are hardcoded to the `reviewer` role.
+New users can be registered through the UI, but all registrations are hardcoded to the `reviewer` role regardless of client input.
 
 ### Local Development (no Docker)
 
@@ -112,7 +110,7 @@ TechKraft's recruitment team needs a web-based tool to manage candidate assessme
 | POST   | `/candidates`                 | JWT    | Create candidate                           |
 | GET    | `/candidates/{id}`            | JWT    | Candidate detail with scores + AI summary  |
 | PATCH  | `/candidates/{id}`            | Admin  | Update status or internal_notes            |
-| DELETE | `/candidates/{id}`            | Admin  | Soft-delete (status → `archived`)          |
+| DELETE | `/candidates/{id}`            | Admin  | Soft-delete (sets status to `archived`)    |
 | POST   | `/candidates/{id}/scores`     | JWT    | Submit score (1–5, category, optional note)|
 | GET    | `/candidates/{id}/scores`     | JWT    | Reviewer sees own; admin sees all          |
 | POST   | `/candidates/{id}/summary`    | JWT    | Trigger mock AI summary (2s delay)         |
@@ -133,7 +131,7 @@ TechKraft's recruitment team needs a web-based tool to manage candidate assessme
 - **JWT-based authentication** with email + password
 - **Reviewer role:** Can score candidates, sees only their own scores, cannot view `internal_notes`
 - **Admin role:** Can see all scores from all reviewers, can view and edit `internal_notes`, can change candidate status
-- **Registration hardcodes `role="reviewer"`** — never accepts role from the client
+- **Registration always assigns `role="reviewer"`** and never accepts a role value from the client, preventing privilege escalation by design
 
 ### 4. Frontend (React + Vite)
 
@@ -153,13 +151,13 @@ TechKraft's recruitment team needs a web-based tool to manage candidate assessme
 ```yaml
 services:
   backend:   # FastAPI on port 8000 (Python 3.12-slim)
-  frontend:  # Multi-stage: Node build → nginx static on port 5173
+  frontend:  # Multi-stage: Node build to nginx static on port 5173
 ```
 
 - Production multi-stage build (frontend served via nginx, not Vite dev server)
 - Healthcheck on backend (`GET /health`)
 - `restart: unless-stopped` for production resilience
-- Nginx reverse-proxies `/api/` → backend:8000 (same-origin, no CORS issues)
+- Nginx reverse-proxies `/api/` to `backend:8000`, keeping requests same-origin and avoiding CORS issues entirely
 - Persistent volume for SQLite database
 
 ### 6. Testing
@@ -176,7 +174,7 @@ pytest tests/ -v
 - Reviewer cannot see `internal_notes` (list + detail)
 - Soft-deleted candidate returns 404 on GET (detail)
 - AI summary endpoint returns content and persists to `ai_summary`
-- Auto status progression (`new` → `reviewed` on first score)
+- Auto status progression from `new` to `reviewed` on the first score submission
 - Admin can change status (PATCH `hired` / `rejected`)
 - Reviewer cannot change status (403)
 - Reviewer cannot edit `internal_notes` (403)
@@ -200,13 +198,9 @@ def search_candidates(status: str, keyword: str, page: int, page_size: int):
     return filtered[offset : offset + page_size]
 ```
 
-**The bug:** This loads the **entire** `candidates` table into application memory, then filters and paginates in Python.
+**The bug:** This loads the **entire** `candidates` table into application memory and then filters and paginates in Python.
 
-**Why it matters at scale:** With thousands or millions of rows, this pattern:
-1. Saturates application memory (OOM risk)
-2. Wastes network I/O transferring unused rows
-3. Makes pagination meaningless — each page still re-reads every row
-4. Prevents the database from using indexes for filtering or sorting
+**Why it matters at scale:** With thousands or millions of rows, this pattern saturates application memory (OOM risk), wastes network I/O transferring unused rows, makes pagination meaningless since each page re-reads every row, and prevents the database from using indexes for filtering or sorting.
 
 **Correct approach:** Push filtering and pagination to the database via SQL `WHERE` clauses, `LIMIT`, and `OFFSET`. Use proper indexes on filtered columns (`status`, `role_applied`) to keep queries efficient regardless of table size.
 
@@ -228,13 +222,13 @@ def search_candidates(status: str, keyword: str, page: int, page_size: int):
 
 ### ADR 3: JWT with Hardcoded Reviewer Role on Registration
 
-- **Context:** Role-based access control is required — reviewers see only their own scores, admins see everything. Registration must never accept role from the client.
-- **Decision:** JWTs carrying `id`, `email`, `role`, and `name`. The register endpoint hardcodes `role="reviewer"`. An admin user is created via a seed script (not an endpoint). Auth middleware decodes the JWT on every request.
-- **Trade-off:** JWTs are stateless and simple, but there's no token revocation mechanism. For a production system, we'd add token blacklisting or switch to session-based auth. The hardcoded role at registration prevents privilege escalation by design.
+- **Context:** Role-based access control is required such that reviewers see only their own scores while admins have full visibility, and registration must never accept a role value from the client.
+- **Decision:** JWTs carry `id`, `email`, `role`, and `name`; the register endpoint hardcodes `role="reviewer"`; an admin user is created via a seed script rather than an endpoint; and auth middleware decodes the JWT on every request.
+- **Trade-off:** JWTs are stateless and simple but lack a token revocation mechanism. For a production system we would add token blacklisting or switch to session-based auth, though the hardcoded role at registration prevents privilege escalation by design.
 
 ### ADR 4: SSE over WebSockets
 
-- **Context:** Real-time score updates needed. The broadcast is unidirectional (server → client), and traffic is low.
+- **Context:** Real-time score updates are needed where the broadcast is unidirectional from server to client and traffic is low.
 - **Decision:** SSE via `sse-starlette` with a 2s polling loop. The frontend uses the browser-native `EventSource` API.
 - **Trade-off:** SSE is simpler than WebSockets and works through HTTP/1.1 proxies, but it's unidirectional and the server has no way to know if the client disconnected without a timeout. `EventSource` also cannot set custom headers, so JWT is passed as a `?token=` query parameter.
 
@@ -242,8 +236,8 @@ def search_candidates(status: str, keyword: str, page: int, page_size: int):
 
 ## Learning Reflection
 
-Building the SSE (Server-Sent Events) endpoint with FastAPI and `sse-starlette` deepened my understanding of real-time server-to-client communication patterns. SSE proved well-suited for the score-update use case — it is unidirectional, works over standard HTTP, and the browser-native `EventSource` API keeps the frontend integration simple without third-party dependencies.
+Building the SSE (Server-Sent Events) endpoint with FastAPI and `sse-starlette` deepened my understanding of real-time server-to-client communication patterns. SSE proved well-suited for the score-update use case because it is unidirectional, works over standard HTTP, and the browser-native `EventSource` API keeps the frontend integration simple without third-party dependencies.
 
 A key takeaway was the JWT authentication workaround: since `EventSource` cannot set custom HTTP headers, the token must be passed as a `?token=` query parameter. This is a well-known limitation that trades header-based security for SSE compatibility, and in practice it is acceptable when the connection uses HTTPS.
 
-Given more time, I would explore WebSocket-based updates instead. WebSockets provide bidirectional communication, allowing the client to acknowledge disconnection and letting the server clean up stale event generators — an edge case the current polling-based SSE approach does not handle gracefully.
+Given more time, I would explore WebSocket-based updates instead. WebSockets provide bidirectional communication that would allow the client to acknowledge disconnection and let the server clean up stale event generators, which is an edge case the current polling-based SSE approach does not handle gracefully.
