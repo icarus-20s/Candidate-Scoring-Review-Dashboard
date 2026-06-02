@@ -1,6 +1,6 @@
-# TechKraft Candidate Scoring & Review Dashboard
+# Candidate Scoring & Review Dashboard
 
-An internal candidate scoring and review dashboard for TechKraft's recruitment workflow that includes admin UIs, scoring systems, and AI-assisted review interfaces. It is built with **FastAPI** (Python), **React + Vite**, **SQLite**, and **Docker Compose**.
+An internal candidate scoring and review dashboard for workflow that includes admin UIs, scoring systems, and AI-assisted review interfaces. It is built with **FastAPI** (Python), **React + Vite**, **SQLite**, and **Docker Compose**.
 
 ---
 
