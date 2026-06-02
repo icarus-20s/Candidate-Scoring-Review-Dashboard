@@ -60,8 +60,6 @@ def pick_candidate_id(client, token):
     return items[0]["id"]
 
 
-# ── Existing tests (refined) ──
-
 def test_create_candidate_and_verify(client):
     token = get_admin_token(client)
     email = unique_email("create")
@@ -143,7 +141,6 @@ def test_ai_summary_generation(client):
     assert resp.json().get("ai_summary") == data["summary"]
 
 
-# ── New tests ──
 
 def test_auto_status_progression(client):
     admin_token = get_admin_token(client)
