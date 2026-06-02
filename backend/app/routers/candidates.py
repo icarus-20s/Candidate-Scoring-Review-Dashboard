@@ -28,6 +28,7 @@ from ..auth import get_current_user, require_admin, get_current_user_query
 router = APIRouter(prefix="/candidates", tags=["candidates"])
 
 
+# Lists candidates with optional filters (status, role_applied, skill, keyword) and offset-based pagination. Strips internal_notes for non-admin users.
 @router.get("", response_model=PaginatedResponse)
 async def get_candidates(
     status: Optional[str] = Query(None),
@@ -64,6 +65,7 @@ async def get_candidates(
     )
 
 
+# Returns full candidate details including scores (filtered by role) and AI summary.
 @router.get("/{candidate_id}", response_model=CandidateDetailResponse, response_model_exclude_none=True)
 async def get_candidate_detail(
     candidate_id: int,
@@ -74,7 +76,6 @@ async def get_candidate_detail(
         raise HTTPException(status_code=404, detail="Candidate not found")
 
     scores = await get_scores_for_candidate(candidate_id, user["id"], user["role"])
-    candidate.pop("scores", None)
 
     return CandidateDetailResponse(
         **candidate,
@@ -82,6 +83,7 @@ async def get_candidate_detail(
     )
 
 
+# Creates a new candidate record.
 @router.post("", response_model=CandidateResponse, status_code=201)
 async def create_new_candidate(
     data: CandidateCreate,
@@ -91,6 +93,7 @@ async def create_new_candidate(
     return CandidateResponse(**candidate)
 
 
+# Updates candidate fields. Only admins can change status or internal_notes.
 @router.patch("/{candidate_id}", response_model=CandidateResponse)
 async def update_existing_candidate(
     candidate_id: int,
@@ -111,6 +114,7 @@ async def update_existing_candidate(
     return CandidateResponse(**candidate)
 
 
+# Soft-deletes a candidate by setting status to archived and recording deleted_at. Admin only.
 @router.delete("/{candidate_id}", status_code=204)
 async def delete_candidate(
     candidate_id: int,
@@ -121,6 +125,7 @@ async def delete_candidate(
         raise HTTPException(status_code=404, detail="Candidate not found")
 
 
+# Submits a score (1-5) for a candidate in a given category. Transitions candidate status from new to reviewed on first score.
 @router.post("/{candidate_id}/scores", response_model=ScoreResponse, status_code=201)
 async def submit_score(
     candidate_id: int,
@@ -134,6 +139,7 @@ async def submit_score(
     return ScoreResponse(**score)
 
 
+# Returns scores for a candidate. Reviewers see only their own scores; admins see all.
 @router.get("/{candidate_id}/scores", response_model=list[ScoreResponse])
 async def list_scores(
     candidate_id: int,
@@ -143,6 +149,7 @@ async def list_scores(
     return [ScoreResponse(**s) for s in scores]
 
 
+# Triggers a mock AI summary generation with a 2-second simulated delay.
 @router.post("/{candidate_id}/summary", response_model=SummaryResponse)
 async def trigger_summary(
     candidate_id: int,
@@ -155,6 +162,7 @@ async def trigger_summary(
     return SummaryResponse(summary=summary)
 
 
+# SSE endpoint that streams score updates for a candidate. Polls every 2 seconds and emits score_update events when new scores appear.
 @router.get("/{candidate_id}/stream")
 async def stream_scores(
     candidate_id: int,

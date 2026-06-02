@@ -8,18 +8,21 @@ import {
 } from '../theme'
 import { CATEGORIES, STATUSES, SCORE_VALUES } from '../constants'
 
+// Formats an ISO date string into a short, locale-aware display string.
 function fmtDate(v) {
   return new Date(v).toLocaleString(undefined, {
     month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit',
   })
 }
 
+// Computes the average score across all entries, rounded to one decimal.
 function avgScore(scores) {
   if (!scores.length) return null
   const avg = scores.reduce((s, x) => s + x.score, 0) / scores.length
   return Math.round(avg * 10) / 10
 }
 
+// Groups scores by category and returns per-category averages with counts.
 function categoryBreakdown(scores) {
   const cats = {}
   for (const s of scores) {
@@ -33,6 +36,7 @@ function categoryBreakdown(scores) {
   }))
 }
 
+// Full candidate detail view: profile, scores table, score submission, AI summary, admin notes/status controls.
 export default function CandidateDetailPage() {
   const { id } = useParams()
   const navigate = useNavigate()

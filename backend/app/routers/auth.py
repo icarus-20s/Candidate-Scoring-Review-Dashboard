@@ -6,6 +6,7 @@ from ..auth import verify_password, create_access_token, get_current_user
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 
+# Creates a new user with the reviewer role, returns a JWT.
 @router.post("/register", response_model=TokenResponse)
 async def register(data: UserCreate):
     try:
@@ -30,6 +31,7 @@ async def register(data: UserCreate):
     )
 
 
+# Authenticates a user by email and password, returns a JWT.
 @router.post("/login", response_model=TokenResponse)
 async def login(data: UserLogin):
     user = await get_user_by_email(data.email)
@@ -54,6 +56,7 @@ async def login(data: UserLogin):
     )
 
 
+# Returns the currently authenticated user's profile.
 @router.get("/me", response_model=UserResponse)
 async def me(user: dict = Depends(get_current_user)):
     return UserResponse(**user, created_at="")

@@ -101,7 +101,7 @@ For Docker, create a `.env` file in the project root and `docker compose` will l
 | POST   | `/candidates`                 | JWT    | Create candidate                           |
 | GET    | `/candidates/{id}`            | JWT    | Candidate detail with scores + AI summary  |
 | PATCH  | `/candidates/{id}`            | Admin  | Update status or internal_notes            |
-| DELETE | `/candidates/{id}`            | Admin  | Soft-delete (sets status to `archived`)    |
+| DELETE | `/candidates/{id}`            | Admin  | Soft-delete (status→`archived`, sets `deleted_at`) |
 | POST   | `/candidates/{id}/scores`     | JWT    | Submit score (1–5, category, optional note)|
 | GET    | `/candidates/{id}/scores`     | JWT    | Reviewer sees own; admin sees all          |
 | POST   | `/candidates/{id}/summary`    | JWT    | Trigger mock AI summary (2s delay)         |
@@ -111,7 +111,7 @@ For Docker, create a `.env` file in the project root and `docker compose` will l
 
 ### 2. Database (SQLite)
 
-**candidates:** `id`, `name`, `email`, `role_applied`, `status` (new/reviewed/hired/rejected), `skills` (JSON array), `internal_notes` (admin-only), `ai_summary`, `created_at`
+**candidates:** `id`, `name`, `email`, `role_applied`, `status` (new/reviewed/hired/rejected), `skills` (JSON array), `internal_notes` (admin-only), `ai_summary`, `deleted_at`, `created_at`
 
 **scores:** `id`, `candidate_id`, `category`, `score` (1–5), `reviewer_id`, `note`, `created_at`
 
@@ -159,7 +159,7 @@ pip install -r requirements.txt
 pytest tests/ -v
 ```
 
-**14 tests covering:**
+**15 tests covering:**
 - Creating a candidate and verifying the response
 - Reviewer 1 cannot see Reviewer 2's scores
 - Reviewer cannot see `internal_notes` (list + detail)
@@ -173,6 +173,7 @@ pytest tests/ -v
 - Page size capped at 50 (422 beyond)
 - Non-admin cannot delete (403)
 - Soft-deleted candidate excluded from list
+- Soft-delete sets `deleted_at` timestamp
 
 ---
 
@@ -194,6 +195,77 @@ def search_candidates(status: str, keyword: str, page: int, page_size: int):
 **Why it matters at scale:** With thousands or millions of rows, this pattern saturates application memory (OOM risk), wastes network I/O transferring unused rows, makes pagination meaningless since each page re-reads every row, and prevents the database from using indexes for filtering or sorting.
 
 **Correct approach:** Push filtering and pagination to the database via SQL `WHERE` clauses, `LIMIT`, and `OFFSET`. Use proper indexes on filtered columns (`status`, `role_applied`) to keep queries efficient regardless of table size.
+
+---
+
+## Example API Calls (curl)
+
+```bash
+# --- Auth ---
+
+# Login as admin
+curl -s http://localhost:8000/auth/login \
+  -H 'Content-Type: application/json' \
+  -d '{"email":"admin@techkraft.com","password":"admin123"}' | jq .
+
+# Register a new reviewer
+curl -s http://localhost:8000/auth/register \
+  -H 'Content-Type: application/json' \
+  -d '{"email":"reviewer@test.com","password":"pass123","name":"Jane Reviewer"}' | jq .
+
+# --- Candidates ---
+
+TOKEN="<your-jwt-token>"
+
+# List candidates (paginated, default 20 per page)
+curl -s http://localhost:8000/candidates \
+  -H "Authorization: Bearer $TOKEN" | jq .
+
+# List with filters and custom page size
+curl -s "http://localhost:8000/candidates?status=new&role_applied=Frontend+Engineer&skill=React&offset=0&page_size=10" \
+  -H "Authorization: Bearer $TOKEN" | jq .
+
+# Get candidate detail
+curl -s http://localhost:8000/candidates/1 \
+  -H "Authorization: Bearer $TOKEN" | jq .
+
+# Create a candidate
+curl -s -X POST http://localhost:8000/candidates \
+  -H "Authorization: Bearer $TOKEN" \
+  -H 'Content-Type: application/json' \
+  -d '{"name":"John Doe","email":"john@example.com","role_applied":"Backend Engineer","skills":["Python","FastAPI"]}' | jq .
+
+# Update candidate (admin: status or notes)
+curl -s -X PATCH http://localhost:8000/candidates/1 \
+  -H "Authorization: Bearer $TOKEN" \
+  -H 'Content-Type: application/json' \
+  -d '{"status":"reviewed","internal_notes":"Strong candidate"}' | jq .
+
+# Soft-delete a candidate (admin only)
+curl -s -X DELETE http://localhost:8000/candidates/1 \
+  -H "Authorization: Bearer $TOKEN"
+
+# --- Scores ---
+
+# Submit a score
+curl -s -X POST http://localhost:8000/candidates/1/scores \
+  -H "Authorization: Bearer $TOKEN" \
+  -H 'Content-Type: application/json' \
+  -d '{"category":"Technical","score":4,"note":"Solid skills"}' | jq .
+
+# Get scores (reviewer sees own; admin sees all)
+curl -s http://localhost:8000/candidates/1/scores \
+  -H "Authorization: Bearer $TOKEN" | jq .
+
+# --- AI Summary ---
+
+# Trigger AI summary generation (2s delay)
+curl -s -X POST http://localhost:8000/candidates/1/summary \
+  -H "Authorization: Bearer $TOKEN" | jq .
+
+# --- Health Check ---
+curl -s http://localhost:8000/health | jq .
+```
 
 ---
 

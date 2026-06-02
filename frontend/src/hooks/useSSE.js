@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { API_BASE } from '../api/client'
 
+// Establishes an SSE connection to stream score updates for a candidate. Returns live scores, connection status, and last-updated timestamp.
 export default function useSSE(candidateId) {
   const [scores, setScores] = useState([])
   const [connected, setConnected] = useState(false)

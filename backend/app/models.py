@@ -3,6 +3,7 @@ from datetime import datetime, timezone
 
 DATABASE_URL = "app.db"
 
+# Opens a new SQLite connection with row factory and WAL mode.
 async def get_db():
     db = await aiosqlite.connect(DATABASE_URL)
     db.row_factory = aiosqlite.Row
@@ -10,6 +11,7 @@ async def get_db():
     await db.execute("PRAGMA foreign_keys=ON")
     return db
 
+# Creates all tables and indexes on startup. Applies column migrations for existing databases.
 async def init_db():
     db = await get_db()
     await db.executescript("""
@@ -31,6 +33,7 @@ async def init_db():
             skills TEXT NOT NULL DEFAULT '[]',
             internal_notes TEXT NOT NULL DEFAULT '',
             ai_summary TEXT NOT NULL DEFAULT '',
+            deleted_at TEXT DEFAULT NULL,
             created_at TEXT NOT NULL DEFAULT (datetime('now'))
         );
 
@@ -53,10 +56,14 @@ async def init_db():
     """)
     await db.commit()
 
-    try:
-        await db.execute("ALTER TABLE candidates ADD COLUMN ai_summary TEXT NOT NULL DEFAULT ''")
-        await db.commit()
-    except Exception:
-        pass
+    for col in [
+        "ai_summary TEXT NOT NULL DEFAULT ''",
+        "deleted_at TEXT DEFAULT NULL",
+    ]:
+        try:
+            await db.execute(f"ALTER TABLE candidates ADD COLUMN {col}")
+            await db.commit()
+        except Exception:
+            pass
 
     await db.close()

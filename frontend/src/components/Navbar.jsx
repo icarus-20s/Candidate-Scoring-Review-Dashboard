@@ -2,6 +2,7 @@ import { useNavigate, useLocation } from 'react-router-dom'
 import { getUser, logout } from '../api/auth'
 import { colors } from '../theme'
 
+// Top navigation bar with app logo, candidate nav link, user badge, and logout.
 export default function Navbar() {
   const navigate = useNavigate()
   const location = useLocation()

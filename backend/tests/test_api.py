@@ -270,3 +270,29 @@ def test_soft_deleted_hidden_from_list(client):
     resp = client.get("/candidates", headers={"Authorization": f"Bearer {admin_token}"})
     ids = [item["id"] for item in resp.json()["items"]]
     assert cid not in ids
+
+
+def test_soft_delete_sets_deleted_at(client):
+    admin_token = get_admin_token(client)
+    email = unique_email("deleted_at")
+    resp = client.post(
+        "/candidates",
+        json={"name": "Deleted At Test", "email": email, "role_applied": "Engineer"},
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    cid = resp.json()["id"]
+    client.delete(f"/candidates/{cid}", headers={"Authorization": f"Bearer {admin_token}"})
+
+    import aiosqlite
+    db = None
+    try:
+        import asyncio
+        from app.models import get_db
+        db = asyncio.run(get_db())
+        cursor = asyncio.run(db.execute("SELECT deleted_at FROM candidates WHERE id = ?", (cid,)))
+        row = asyncio.run(cursor.fetchone())
+        assert row is not None
+        assert row["deleted_at"] is not None
+    finally:
+        if db:
+            asyncio.run(db.close())

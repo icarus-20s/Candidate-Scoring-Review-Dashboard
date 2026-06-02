@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { login, register } from '../api/auth'
 import { colors } from '../theme'
 
+// Login/Register page with toggle between sign-in and account creation. Shows demo credentials for convenience.
 export default function LoginPage() {
   const [mode, setMode] = useState('login')
   const [email, setEmail] = useState('')

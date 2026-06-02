@@ -5,6 +5,7 @@ from typing import Optional, List
 from ..models import get_db, DATABASE_URL
 import aiosqlite
 
+# Returns a paginated, filtered list of active (non-archived) candidates with total count.
 async def list_candidates(
     status: Optional[str] = None,
     role_applied: Optional[str] = None,
@@ -14,7 +15,7 @@ async def list_candidates(
     page_size: int = 20,
 ):
     db = await get_db()
-    conditions = ["c.status != 'archived'"]
+    conditions = ["c.status != 'archived' AND c.deleted_at IS NULL"]
     params = []
 
     if status:
@@ -56,9 +57,10 @@ async def list_candidates(
     return items, total
 
 
+# Fetches a single active candidate by ID. Strips internal_notes for non-admin roles.
 async def get_candidate(candidate_id: int, user_role: str = "reviewer"):
     db = await get_db()
-    cursor = await db.execute("SELECT * FROM candidates WHERE id = ? AND status != 'archived'", (candidate_id,))
+    cursor = await db.execute("SELECT * FROM candidates WHERE id = ? AND status != 'archived' AND deleted_at IS NULL", (candidate_id,))
     row = await cursor.fetchone()
     if not row:
         await db.close()
@@ -70,21 +72,11 @@ async def get_candidate(candidate_id: int, user_role: str = "reviewer"):
     if user_role != "admin":
         candidate.pop("internal_notes", None)
 
-    scores_cursor = await db.execute(
-        """SELECT s.*, u.name as reviewer_name
-           FROM scores s
-           JOIN users u ON s.reviewer_id = u.id
-           WHERE s.candidate_id = ?
-           ORDER BY s.created_at DESC""",
-        (candidate_id,),
-    )
-    score_rows = await scores_cursor.fetchall()
-    candidate["scores"] = [dict(s) for s in score_rows]
-
     await db.close()
     return candidate
 
 
+# Inserts a new candidate record and returns the created row.
 async def create_candidate(data) -> dict:
     db = await get_db()
     skills_json = json.dumps(data.get("skills", []))
@@ -103,6 +95,7 @@ async def create_candidate(data) -> dict:
     return result
 
 
+# Updates candidate fields. Non-admin roles are prevented from modifying internal_notes.
 async def update_candidate(candidate_id: int, data: dict, user_role: str = "admin") -> Optional[dict]:
     db = await get_db()
     cursor = await db.execute("SELECT * FROM candidates WHERE id = ?", (candidate_id,))
@@ -141,11 +134,14 @@ async def update_candidate(candidate_id: int, data: dict, user_role: str = "admi
     return result
 
 
+# Marks a candidate as archived with a deleted_at timestamp. Returns True if a row was updated.
 async def soft_delete_candidate(candidate_id: int) -> bool:
     db = await get_db()
+    from datetime import datetime, timezone
+    now = datetime.now(timezone.utc).isoformat()
     cursor = await db.execute(
-        "UPDATE candidates SET status = 'archived' WHERE id = ? AND status != 'archived'",
-        (candidate_id,),
+        "UPDATE candidates SET status = 'archived', deleted_at = ? WHERE id = ? AND status != 'archived'",
+        (now, candidate_id),
     )
     await db.commit()
     affected = cursor.rowcount
@@ -153,6 +149,7 @@ async def soft_delete_candidate(candidate_id: int) -> bool:
     return affected > 0
 
 
+# Inserts a score record and auto-advances candidate status from new to reviewed. Returns the created score with reviewer name.
 async def add_score(candidate_id: int, data, reviewer_id: int) -> dict:
     db = await get_db()
     cursor = await db.execute(
@@ -188,6 +185,7 @@ async def add_score(candidate_id: int, data, reviewer_id: int) -> dict:
     return dict(result)
 
 
+# Returns scores for a candidate. Admins see all scores; reviewers see only their own.
 async def get_scores_for_candidate(candidate_id: int, user_id: int, user_role: str) -> List[dict]:
     db = await get_db()
     if user_role == "admin":
@@ -213,6 +211,7 @@ async def get_scores_for_candidate(candidate_id: int, user_id: int, user_role: s
     return [dict(r) for r in rows]
 
 
+# Simulates a 2-second async LLM call, computes average scores per category, persists the summary to the candidate record, and returns it.
 async def generate_ai_summary(candidate_id: int) -> str:
     await asyncio.sleep(2)
     db = await get_db()
@@ -267,6 +266,7 @@ async def generate_ai_summary(candidate_id: int) -> str:
     return summary
 
 
+# Creates a new user with a hashed password. Raises ValueError on duplicate email.
 async def create_user(email: str, password: str, name: str, role: str = "reviewer") -> dict:
     from ..auth import hash_password
 
@@ -288,6 +288,7 @@ async def create_user(email: str, password: str, name: str, role: str = "reviewe
         await db.close()
 
 
+# Looks up a user by email, returns None if not found.
 async def get_user_by_email(email: str) -> Optional[dict]:
     db = await get_db()
     cursor = await db.execute("SELECT * FROM users WHERE email = ?", (email,))
@@ -296,6 +297,7 @@ async def get_user_by_email(email: str) -> Optional[dict]:
     return dict(row) if row else None
 
 
+# Idempotent: creates the default admin user if it does not exist.
 async def seed_admin():
     db = await get_db()
     cursor = await db.execute("SELECT id FROM users WHERE email = ?", ("admin@techkraft.com",))
@@ -313,6 +315,7 @@ async def seed_admin():
     await db.close()
 
 
+# Idempotent: inserts 30 sample candidates across various roles and statuses if the table is empty.
 async def seed_sample_candidates():
     db = await get_db()
     cursor = await db.execute("SELECT COUNT(*) as cnt FROM candidates")

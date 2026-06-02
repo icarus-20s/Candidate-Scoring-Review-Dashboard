@@ -6,6 +6,7 @@ import CandidateListPage from './pages/CandidateListPage'
 import CandidateDetailPage from './pages/CandidateDetailPage'
 import { getUser } from './api/auth'
 
+// Root component: renders navbar when authenticated, defines routes for login, candidate list, and candidate detail.
 export default function App() {
   const user = getUser()
   return (

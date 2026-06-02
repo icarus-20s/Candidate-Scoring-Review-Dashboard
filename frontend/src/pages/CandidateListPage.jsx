@@ -11,6 +11,7 @@ const FILTERS = [
   { key: 'keyword', placeholder: 'Keyword', type: 'text' },
 ]
 
+// Displays a paginated, filterable table of candidates with an inline create form.
 export default function CandidateListPage() {
   const navigate = useNavigate()
   const [candidates, setCandidates] = useState([])
@@ -18,6 +19,7 @@ export default function CandidateListPage() {
   const [offset, setOffset] = useState(0)
   const [filters, setFilters] = useState({ status: '', role_applied: '', skill: '', keyword: '' })
   const [loading, setLoading] = useState(false)
+  const [fetchError, setFetchError] = useState('')
   const [showCreate, setShowCreate] = useState(false)
   const [form, setForm] = useState({ name: '', email: '', role_applied: '', skills: '' })
   const [creating, setCreating] = useState(false)
@@ -25,13 +27,16 @@ export default function CandidateListPage() {
 
   const load = useCallback(async () => {
     setLoading(true)
+    setFetchError('')
     try {
       const params = { offset, page_size: PAGE_SIZE }
       FILTERS.forEach(({ key }) => { if (filters[key]) params[key] = filters[key] })
       const data = await fetchCandidates(params)
       setCandidates(data.items)
       setTotal(data.total)
-    } catch (err) { console.error(err) }
+    } catch (err) {
+      setFetchError(err.message)
+    }
     finally { setLoading(false) }
   }, [offset, filters])
 
@@ -123,7 +128,11 @@ export default function CandidateListPage() {
           )}
         </div>
 
-        {loading ? (
+        {fetchError ? (
+          <div style={{ padding: '40px 24px', textAlign: 'center', color: colors.dark, fontSize: 13 }}>
+            {fetchError}
+          </div>
+        ) : loading ? (
           <div style={{ padding: '40px 24px', textAlign: 'center', color: colors.light, fontSize: 13 }}>Loading...</div>
         ) : candidates.length === 0 ? (
           <div style={{ padding: '40px 24px', textAlign: 'center', color: colors.light, fontSize: 13 }}>No candidates found.</div>

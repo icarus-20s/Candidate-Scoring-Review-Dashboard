@@ -6,6 +6,7 @@ from .routers import auth, candidates
 from .services.candidate_service import seed_admin, seed_sample_candidates
 
 
+# Initializes the database, seeds admin user, and populates sample candidates on startup.
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     await init_db()
@@ -28,6 +29,7 @@ app.include_router(auth.router)
 app.include_router(candidates.router)
 
 
+# Returns a simple health-check response for load balancers and Docker health checks.
 @app.get("/health")
 async def health():
     return {"status": "ok"}
